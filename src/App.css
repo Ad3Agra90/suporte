@@ -1,0 +1,16 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    list-style-type: none;
+    text-decoration: none;
+    font-family: "Inter", sans-serif;
+}
+
+.page-container {
+    padding-top: 80px; /* space for header */
+    padding-left: 20px;
+    padding-right: 20px;
+    min-height: calc(100vh - 80px); /* full height minus header */
+    box-sizing: border-box;
+}
