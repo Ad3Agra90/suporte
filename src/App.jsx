@@ -4,7 +4,9 @@ import Login from './assets/Login_page/login';
 import Header from './assets/components/Header/Header';
 import Settings from './assets/Pages/Configurações/Settings';
 import Chat from './assets/Pages/Chat/Chat';
-import Mensagens from './assets/Pages/Mensagens/Mensagens';
+import Chamados from './assets/Pages/Chamados/Chamados';
+import Tasks from './assets/Pages/Tasks/Tasks';
+import Admin from './assets/Pages/Admin/Admin';
 import './App.css';
 
 function Home({ username }) {
@@ -19,21 +21,26 @@ function Home({ username }) {
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [username, setUsername] = useState(localStorage.getItem('username') || null);
+  const [permission, setPermission] = useState(localStorage.getItem('permission') || 'Cliente');
 
   useEffect(() => {
     // Removed console logs of sensitive information for security
     if (!token) {
       setUsername(null);
+      setPermission('Cliente');
       localStorage.removeItem('username');
+      localStorage.removeItem('permission');
     }
   }, [token, username]);
 
-  const handleLoginSuccess = (token, username) => {
+  const handleLoginSuccess = (token, username, permission) => {
     // Removed console logs of sensitive information for security
     localStorage.setItem('token', token);
     localStorage.setItem('username', username);
+    localStorage.setItem('permission', permission);
     setToken(token);
     setUsername(username);
+    setPermission(permission || 'Cliente');
   };
 
   const handleLogout = async () => {
@@ -51,8 +58,10 @@ export default function App() {
     }
     localStorage.removeItem('token');
     localStorage.removeItem('username');
+    localStorage.removeItem('permission');
     setToken(null);
     setUsername(null);
+    setPermission('Cliente');
   };
 
   if (!token) {
@@ -61,13 +70,21 @@ export default function App() {
 
   return (
       <Router>
-        <Header username={username} onLogout={handleLogout} />
+        <Header username={username} onLogout={handleLogout} permission={permission.toLowerCase()} />
         <div className="page-container">
           <Routes>
             <Route path="/" element={<Home username={username} />} />
-            <Route path="/configuracoes" element={<Settings />} />
+            {(permission.toLowerCase() === 'admin' || permission.toLowerCase() === 'tecnico') && (
+              <Route path="/admin" element={<Admin />} />
+            )}
+            {permission.toLowerCase() === 'admin' && (
+              <Route path="/configuracoes" element={<Settings />} />
+            )}
             <Route path="/chat" element={<Chat />} />
-            <Route path="/mensagens" element={<Mensagens />} />
+            <Route path="/chamados" element={<Chamados />} />
+            {permission.toLowerCase() === 'tecnico' && (
+              <Route path="/tasks" element={<Tasks />} />
+            )}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

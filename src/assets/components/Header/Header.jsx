@@ -4,22 +4,45 @@ import { Link } from "react-router-dom";
 
 export default function Header({ username }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [permission, setPermission] = useState('Cliente');
 
+  useEffect(() => {
+    const perm = localStorage.getItem('permission') || 'Cliente';
+    setPermission(perm);
+  }, []);
+
+  // Base menu items always shown
   const menuItems = [
     { href: '/', iconName: 'home-outline', text: 'Home' },
     { href: '/chat', iconName: 'logo-wechat', text: 'Chat' },
-    { href: '/mensagens', iconName: 'chatbubble-outline', text: 'Mensagens' },
-    { href: '/tecnico', iconName: 'construct-outline', text: 'Técnico' },
-    { href: '/configuracoes', iconName: 'settings-outline', text: 'Ajustes' },
   ];
+
+  // Conditionally add menu items for admin
+  if (permission.toLowerCase() === 'admin') {
+    menuItems.push(
+      { href: '/chamados', iconName: 'chatbubble-outline', text: 'Chamado' },
+      { href: '/admin', iconName: 'shield-checkmark-outline', text: 'Admin' },
+      { href: '/configuracoes', iconName: 'settings-outline', text: 'Ajustes' }
+    );
+  } else if (permission.toLowerCase() === 'tecnico') {
+    menuItems.push(
+      { href: '/tasks', iconName: 'clipboard-outline', text: 'Tasks' }
+    );
+  } else {
+    // For other permissions, show chamado tab
+    menuItems.push(
+      { href: '/chamados', iconName: 'chatbubble-outline', text: 'Chamado' }
+    );
+  }
 
   const handleClick = (index) => {
     setActiveIndex(index);
   };
 
-  // Calculate indicator position based on activeIndex
+  // Calculate indicator position based on activeIndex only, fixed width
   const indicatorStyle = {
     transform: `translateX(calc(70px * ${activeIndex}))`,
+    width: `70px`
   };
 
   // Load ionicons script dynamically
@@ -54,6 +77,7 @@ export default function Header({ username }) {
     }
     localStorage.removeItem('token');
     localStorage.removeItem('username');
+    localStorage.removeItem('permission');
     window.location.href = '/login';
   };
 
@@ -62,7 +86,7 @@ export default function Header({ username }) {
       <div className="header-logo">
         <h1>MyAppLogo</h1>
       </div>
-      <nav className="navigation">
+      <nav className="navigation" style={{ width: `${menuItems.length * 70}px` }}>
         <ul>
           {menuItems.map((item, index) => (
             <li

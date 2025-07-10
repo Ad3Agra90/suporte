@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import './Mensagens.css';
+import '../Chamados/Chamados.css';
 
-export default function Mensagens() {
+export default function Chamados() {
   const [tickets, setTickets] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -46,7 +46,7 @@ export default function Mensagens() {
           'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify({
-          titulo: title.trim(),
+          chamado: title.trim(),
           descricao: description.trim(),
         }),
       });
@@ -89,7 +89,7 @@ export default function Mensagens() {
   };
 
   return (
-    <div className="mensagens-container">
+    <div className="chamados-container">
       <h1>Abertura e acompanhamento de chamados</h1>
 
       <form className="ticket-form" onSubmit={handleSubmit}>
@@ -132,7 +132,7 @@ export default function Mensagens() {
         <tbody>
           {tickets.map((ticket) => (
             <tr key={ticket.id}>
-              <td>{ticket.titulo}</td>
+              <td>{ticket.chamado}</td>
               <td>
                 <button onClick={() => openModal('Descrição', ticket.descricao)}>Ver Descrição</button>
               </td>
@@ -140,7 +140,7 @@ export default function Mensagens() {
                 <button onClick={() => openModal('Resposta', ticket.resposta)}>Ver Resposta</button>
               </td>
               <td>{ticket.previsao || 'A definir'}</td>
-              <td>{ticket.atendente || '-'}</td>
+              <td>{ticket.tecnico || '-'}</td>
               <td>
                 <span className={`status-badge ${getStatusClass(ticket.status)}`}>
                   {ticket.status}

@@ -13,6 +13,7 @@ export default function Login({ onLoginSuccess }){
     const [regUsername, setRegUsername] = useState('');
     const [regEmail, setRegEmail] = useState('');
     const [regPassword, setRegPassword] = useState('');
+    const [regEmpresaUsuario, setRegEmpresaUsuario] = useState('');
     const [regError, setRegError] = useState('');
     const [regSuccess, setRegSuccess] = useState('');
 
@@ -26,8 +27,12 @@ export default function Login({ onLoginSuccess }){
 
     const handleRegisterClick = () => {
         setIsActive(true);
-        clearMessages();
+        setRegUsername('');
+        setRegEmail('');
+        setRegPassword('');
+        setRegEmpresaUsuario('');
     };
+
     const handleLoginClick = () => {
         setIsActive(false);
         clearMessages();
@@ -39,6 +44,7 @@ export default function Login({ onLoginSuccess }){
         setRegSuccess('');
         setMessage('');
         setError('');
+        setRegEmpresaUsuario('');
     };
 
     const handleLoginSubmit = async (e) => {
@@ -64,7 +70,8 @@ export default function Login({ onLoginSuccess }){
                 setLoginError('');
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('username', data.username || loginUsername);
-                onLoginSuccess(data.token, data.username || loginUsername);
+                localStorage.setItem('permission', data.permission || 'Cliente');
+                onLoginSuccess(data.token, data.username || loginUsername, data.permission || 'Cliente');
             } else {
                 const errorText = await response.text();
                 setLoginError(errorText || 'Credenciais inválidas.');
@@ -96,7 +103,8 @@ export default function Login({ onLoginSuccess }){
                 body: JSON.stringify({
                     username: regUsername,
                     email: regEmail,
-                    password: regPassword
+                    password: regPassword,
+                    empresaUsuario: regEmpresaUsuario
                 }),
             });
 
@@ -213,6 +221,16 @@ export default function Login({ onLoginSuccess }){
                             required
                         />
                         <i className='bx bxs-envelope' ></i>
+                    </div>
+                    <div className="input-box">
+                        <input
+                            type="text"
+                            placeholder="Empresa Associada"
+                            value={regEmpresaUsuario}
+                            onChange={(e) => setRegEmpresaUsuario(e.target.value)}
+                            required
+                        />
+                        <i className='bx bxs-building'></i>
                     </div>
                     <div className="input-box">
                         <input

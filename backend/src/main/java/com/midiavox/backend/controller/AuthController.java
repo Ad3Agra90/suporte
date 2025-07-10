@@ -32,8 +32,9 @@ public class AuthController {
         newUser.setUsername(registerRequest.getUsername());
         newUser.setEmail(registerRequest.getEmail());
         newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        newUser.setEmpresaUsuario(registerRequest.getEmpresaUsuario());
         newUser.setOnline(false);
-        newUser.setPermission("USER"); // Set default permission
+        newUser.setPermission("Cliente"); // Set default permission
         authService.saveUser(newUser);
         return ResponseEntity.ok("Usuário registrado com sucesso");
     }
@@ -45,7 +46,7 @@ public class AuthController {
             return ResponseEntity.status(401).body("Usuário ou senha incorretos");
         }
         String token = jwtTokenUtil.generateToken(user.getUsername());
-        return ResponseEntity.ok(new LoginResponse(token, user.getUsername()));
+        return ResponseEntity.ok(new LoginResponse(token, user.getUsername(), user.getPermission()));
     }
 
     @PostMapping("/request-password-reset")
@@ -94,6 +95,7 @@ public class AuthController {
         private String username;
         private String email;
         private String password;
+        private String empresaUsuario;
 
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
@@ -103,19 +105,25 @@ public class AuthController {
 
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
+
+        public String getEmpresaUsuario() { return empresaUsuario; }
+        public void setEmpresaUsuario(String empresaUsuario) { this.empresaUsuario = empresaUsuario; }
     }
 
     public static class LoginResponse {
         private String token;
         private String username;
+        private String permission;
 
-        public LoginResponse(String token, String username) {
+        public LoginResponse(String token, String username, String permission) {
             this.token = token;
             this.username = username;
+            this.permission = permission;
         }
 
         public String getToken() { return token; }
         public String getUsername() { return username; }
+        public String getPermission() { return permission; }
     }
 
     public static class PasswordResetRequest {

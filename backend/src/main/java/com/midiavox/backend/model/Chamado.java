@@ -14,25 +14,29 @@ public class Chamado {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String titulo;
+    private String chamado;
 
     private String descricao;
 
     private String usuario;
 
+    private String empresaUsuario;
+
     private String resposta;
 
     private java.sql.Date previsao;
 
-    private String atendente;
+    private String tecnico;
 
     private String status;
+
+    private String prioridade;
 
     public Chamado() {
     }
 
-    public Chamado(String titulo, String descricao, String usuario, String status) {
-        this.titulo = titulo;
+    public Chamado(String chamado, String descricao, String usuario, String status) {
+        this.chamado = chamado;
         this.descricao = descricao;
         this.usuario = usuario;
         this.status = status;
@@ -48,12 +52,12 @@ public class Chamado {
         this.id = id;
     }
 
-    public String getTitulo() {
-        return titulo;
+    public String getChamado() {
+        return chamado;
     }
 
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
+    public void setChamado(String chamado) {
+        this.chamado = chamado;
     }
 
     public String getDescricao() {
@@ -72,6 +76,14 @@ public class Chamado {
         this.usuario = usuario;
     }
 
+    public String getEmpresaUsuario() {
+        return empresaUsuario;
+    }
+
+    public void setEmpresaUsuario(String empresaUsuario) {
+        this.empresaUsuario = empresaUsuario;
+    }
+
     public String getResposta() {
         return resposta;
     }
@@ -88,12 +100,12 @@ public class Chamado {
         this.previsao = previsao;
     }
 
-    public String getAtendente() {
-        return atendente;
+    public String getTecnico() {
+        return tecnico;
     }
 
-    public void setAtendente(String atendente) {
-        this.atendente = atendente;
+    public void setTecnico(String tecnico) {
+        this.tecnico = tecnico;
     }
 
     public String getStatus() {
@@ -102,5 +114,13 @@ public class Chamado {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getPrioridade() {
+        return prioridade;
+    }
+
+    public void setPrioridade(String prioridade) {
+        this.prioridade = prioridade;
     }
 }

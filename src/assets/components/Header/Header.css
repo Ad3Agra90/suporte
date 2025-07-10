@@ -20,7 +20,7 @@
 }
 
 .navigation {
-  width: 400px;
+  /* Remove fixed width to allow dynamic sizing */
   height: 70px;
   background: #fff;
   position: relative;
@@ -28,14 +28,19 @@
   justify-content: center;
   align-items: center;
   border-radius: 10px;
+  padding: 0 10px; /* Add some horizontal padding */
+  width: auto; /* Allow width to adjust based on content */
+  min-width: 210px; /* Minimum width for 3 menu items (70px each) */
+  max-width: 420px; /* Maximum width for 6 menu items */
 }
 
 .navigation ul {
   display: flex;
-  width: 350px;
+  /* Remove fixed width to allow dynamic sizing */
   margin: 0;
   padding: 0;
   list-style: none;
+  width: auto;
 }
 
 .navigation ul li {

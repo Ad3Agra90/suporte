@@ -22,33 +22,68 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const stompClient = useRef(null);
 
-  // Fetch users from backend API
-  const fetchUsers = async () => {
+  // Fetch chamados for chat based on user role
+  const fetchChamadosForChat = async () => {
     try {
       const token = localStorage.getItem('token');
-      const username = localStorage.getItem('username');
-      const response = await fetch('/api/users/all', {
+      const response = await fetch('/api/chat/chamados', {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
         },
-        credentials: 'same-origin',
       });
       if (response.ok) {
-        let data = await response.json();
-        // Filter out the logged-in user from the support users list
-        data = data.filter(user => user.username !== username);
-        setSupportUsers(data);
+        const chamados = await response.json();
+        const username = localStorage.getItem('username');
+
+        // Build supportUsers list based on chamados
+        // For tecnico: list of usuarios from chamados
+        // For cliente: list of tecnicos from chamados
+        const currentUserPermission = localStorage.getItem('permission') || '';
+        let usersSet = new Set();
+        if (currentUserPermission.toLowerCase() === 'tecnico') {
+          chamados.forEach(chamado => {
+            if (chamado.usuario && chamado.usuario !== username) {
+              usersSet.add(chamado.usuario);
+            }
+          });
+        } else if (currentUserPermission.toLowerCase() === 'cliente') {
+          chamados.forEach(chamado => {
+            if (chamado.tecnico && chamado.tecnico !== username) {
+              usersSet.add(chamado.tecnico);
+            }
+          });
+        }
+        const usersArray = Array.from(usersSet);
+
+        // Fetch online status for these users
+        const statusResponse = await fetch(`/api/chat/onlineStatus?usernames=${usersArray.join(',')}`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+        });
+        let onlineStatusMap = {};
+        if (statusResponse.ok) {
+          onlineStatusMap = await statusResponse.json();
+        }
+
+        // Build supportUsers array with online status
+        const supportUsersList = usersArray.map(username => ({
+          username,
+          online: onlineStatusMap[username] || false,
+        }));
+
+        setSupportUsers(supportUsersList);
       }
     } catch (error) {
-      console.error('Failed to fetch users:', error);
+      console.error('Failed to fetch chamados for chat:', error);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchChamadosForChat();
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     // Setup WebSocket connection to backend server on port 8080
     // Append token as query param for WebSocket handshake
     const token = localStorage.getItem('token');
@@ -87,24 +122,12 @@ export default function Chat() {
     stompClient.current.activate();
 
     // Poll every 5 seconds for user list update fallback
-    const interval = setInterval(fetchUsers, 5000);
-
-    // Removed WebSocket deactivation on window unload to keep user online during tab switches
-    // const handleUnload = async () => {
-    //   if (stompClient.current && stompClient.current.connected) {
-    //     stompClient.current.deactivate();
-    //   }
-    // };
-    // window.addEventListener('beforeunload', handleUnload);
+    const interval = setInterval(fetchChamadosForChat, 5000);
 
     return () => {
-      // if (stompClient.current) {
-      //   stompClient.current.deactivate();
-      // }
       clearInterval(interval);
-      // window.removeEventListener('beforeunload', handleUnload);
     };
-  }, []); // Removed selectedUser dependency to keep subscription active
+  }, []);
 
   // Filter messages for display based on selectedUser
   const filteredMessages = messages.filter((msg) => {
@@ -115,33 +138,6 @@ export default function Chat() {
       (msg.receiver === username && msg.sender === selectedUser.username)
     );
   });
-
-  // Debug: log messages state on update
-  React.useEffect(() => {
-    console.log('Messages state updated:', messages);
-  }, [messages]);
-
-  const handleUserSelect = async (user) => {
-    setSelectedUser(user);
-    // Fetch chat history from backend
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/chat/history?user1=${localStorage.getItem('username')}&user2=${user.username}`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data);
-      } else {
-        setMessages([]);
-      }
-    } catch (error) {
-      console.error('Failed to fetch chat history:', error);
-      setMessages([]);
-    }
-  };
 
   const [modalOpen, setModalOpen] = React.useState(false);
   const [modalMessage, setModalMessage] = React.useState('');
@@ -167,15 +163,12 @@ export default function Chat() {
         content: input.trim(),
         sender: localStorage.getItem('username'),
         receiver: selectedUser.username,
-        // Remove timestamp, backend sets it
-        // timestamp: new Date().toLocaleTimeString(),
       };
       console.log('Sending message:', newMessage);
       stompClient.current.publish({
         destination: '/app/chat.sendMessage',
         body: JSON.stringify(newMessage),
       });
-      // Do not add message here, wait for server broadcast to update messages
       setInput('');
     }
   };
@@ -213,6 +206,28 @@ export default function Chat() {
     }
   }, [messages]);
 
+  const handleUserSelect = async (user) => {
+    setSelectedUser(user);
+    // Fetch chat history from backend
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/chat/history?user1=${localStorage.getItem('username')}&user2=${user.username}`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data);
+      } else {
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chat history:', error);
+      setMessages([]);
+    }
+  };
+
   return (
     <>
       <div className="chat-wrapper">
@@ -221,10 +236,10 @@ export default function Chat() {
           <ul>
             {supportUsers.map((user) => (
               <li
-                key={user.id}
+                key={user.username}
                 className={user.online ? 'online' : 'offline'}
                 onClick={() => handleUserSelect(user)}
-                style={{ cursor: 'pointer', fontWeight: selectedUser?.id === user.id ? 'bold' : 'normal' }}
+                style={{ cursor: 'pointer', fontWeight: selectedUser?.username === user.username ? 'bold' : 'normal' }}
               >
                 <span className={user.online ? 'status-dot online' : 'status-dot offline'}></span>&nbsp;{user.username}
               </li>

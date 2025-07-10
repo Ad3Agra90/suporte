@@ -28,5 +28,6 @@ C:\Users\7 Sistemas\Documents\adriano\MIDIAVOX\suporte\backend\src\main\java\com
 C:\Users\7 Sistemas\Documents\adriano\MIDIAVOX\suporte\backend\src\main\java\com\midiavox\backend\service\EmailService.java
 C:\Users\7 Sistemas\Documents\adriano\MIDIAVOX\suporte\backend\src\main\java\com\midiavox\backend\controller\AuthController.java
 C:\Users\7 Sistemas\Documents\adriano\MIDIAVOX\suporte\backend\src\main\java\com\midiavox\backend\config\WebSocketEventListener.java
+C:\Users\7 Sistemas\Documents\adriano\MIDIAVOX\suporte\backend\src\main\java\com\midiavox\backend\config\PasswordEncoderConfig.java
 C:\Users\7 Sistemas\Documents\adriano\MIDIAVOX\suporte\backend\src\main\java\com\midiavox\backend\model\Chamado.java
 C:\Users\7 Sistemas\Documents\adriano\MIDIAVOX\suporte\backend\src\main\java\com\midiavox\backend\service\AuthService.java

@@ -33,11 +33,22 @@ public class User {
     @Column(name = "_online", nullable = false)
     private boolean online = false;
 
+    @Column(name = "empresa_usuario")
+    private String empresaUsuario;
+
     public boolean isOnline() {
         return online;
     }
 
     public void setOnline(boolean online) {
         this.online = online;
+    }
+
+    public String getEmpresaUsuario() {
+        return empresaUsuario;
+    }
+
+    public void setEmpresaUsuario(String empresaUsuario) {
+        this.empresaUsuario = empresaUsuario;
     }
 }

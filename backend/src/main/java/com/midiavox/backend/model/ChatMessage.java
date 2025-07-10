@@ -23,14 +23,17 @@ public class ChatMessage {
 
     private LocalDateTime timestamp;
 
+    private Long chamadoId;
+
     public ChatMessage() {
     }
 
-    public ChatMessage(String sender, String receiver, String content, LocalDateTime timestamp) {
+    public ChatMessage(String sender, String receiver, String content, LocalDateTime timestamp, Long chamadoId) {
         this.sender = sender;
         this.receiver = receiver;
         this.content = content;
         this.timestamp = timestamp;
+        this.chamadoId = chamadoId;
     }
 
     public Long getId() {
@@ -71,5 +74,13 @@ public class ChatMessage {
 
     public void setTimestamp(LocalDateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public Long getChamadoId() {
+        return chamadoId;
+    }
+
+    public void setChamadoId(Long chamadoId) {
+        this.chamadoId = chamadoId;
     }
 }

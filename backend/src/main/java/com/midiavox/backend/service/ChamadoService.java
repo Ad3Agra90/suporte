@@ -23,4 +23,36 @@ public class ChamadoService {
     public List<Chamado> getChamadosByUsuario(String usuario) {
         return chamadoRepository.findByUsuario(usuario);
     }
+
+    public List<Chamado> getChamadosByTecnico(String tecnico) {
+        return chamadoRepository.findByTecnico(tecnico);
+    }
+
+    public java.util.Optional<Chamado> getChamadoById(Long id) {
+        return chamadoRepository.findById(id);
+    }
+
+    public List<Chamado> getAllChamados() {
+        return chamadoRepository.findAll();
+    }
+
+    public void deleteChamadoById(Long id) {
+        chamadoRepository.deleteById(id);
+    }
+
+    public List<Chamado> getChamadosSemTecnico() {
+        return chamadoRepository.findByTecnicoIsNull();
+    }
+
+    public List<Chamado> getChamadosByPrioridade(String prioridade) {
+        return chamadoRepository.findByPrioridade(prioridade);
+    }
+
+    public List<Chamado> getChamadosByStatus(String status) {
+        return chamadoRepository.findByStatus(status);
+    }
+
+    public List<Chamado> searchChamadosByTitulo(String keyword) {
+        return chamadoRepository.findByChamadoContainingIgnoreCase(keyword);
+    }
 }

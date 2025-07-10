@@ -18,4 +18,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByResetToken(String resetToken);
 
     List<User> findByOnlineTrue();
+
+    List<User> findByPermission(String permission);
+
+    List<User> findByUsernameContainingIgnoreCase(String keyword);
 }
