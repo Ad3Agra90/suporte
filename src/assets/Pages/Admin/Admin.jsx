@@ -3,7 +3,6 @@ import './Admin.css';
 
 export default function Admin() {
   const [chamados, setChamados] = useState([]);
-  // Removed duplicate declaration of users and setUsers to fix redeclaration error
   const [selectedChamado, setSelectedChamado] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [tecnicos, setTecnicos] = useState([]);
@@ -32,7 +31,6 @@ export default function Admin() {
   }, []);
 
   const handleFilterChange = (overrides = {}) => {
-    // Merge current filters with overrides to allow independent filter application
     const filters = {
       keyword: filterKeyword,
       semTecnico: filterSemTecnico,
@@ -43,7 +41,6 @@ export default function Admin() {
       ...overrides,
     };
 
-    // Update local filter states if overrides provided
     if (Object.prototype.hasOwnProperty.call(overrides, 'keyword')) setFilterKeyword(overrides.keyword);
     if (Object.prototype.hasOwnProperty.call(overrides, 'semTecnico')) setFilterSemTecnico(overrides.semTecnico);
     if (Object.prototype.hasOwnProperty.call(overrides, 'comTecnico')) setFilterComTecnico(overrides.comTecnico);
@@ -72,7 +69,6 @@ export default function Admin() {
       });
       if (res.ok) {
         const data = await res.json();
-        console.log('Fetched chamados with filters:', data);
         setChamados(data);
       } else {
         console.error('Failed to fetch chamados: HTTP status', res.status);
@@ -107,7 +103,6 @@ export default function Admin() {
       const params = new URLSearchParams();
       if (filterUserPermission) params.append('permission', filterUserPermission);
       if (filterUserKeyword) params.append('keyword', filterUserKeyword);
-      console.log('Fetching users with filter:', params.toString());  // Added debug log
       const res = await fetch(`/api/users/filter?${params.toString()}`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
@@ -115,7 +110,6 @@ export default function Admin() {
       });
       if (res.ok) {
         const data = await res.json();
-        console.log('Filtered users received:', data);  // Added debug log
         setUsers(data);
         const tecnicosList = data.filter(u => u.permission && u.permission.toLowerCase() === 'tecnico');
         setTecnicos(tecnicosList);
@@ -136,7 +130,6 @@ export default function Admin() {
     setSelectedChamado(null);
     setIsChamadoModalOpen(false);
   };
-
 
   const openUserModal = (user) => {
     setSelectedUser(user);
@@ -163,7 +156,6 @@ export default function Admin() {
         body: JSON.stringify(editedUser),
       });
       if (res.ok) {
-        // Check if password was changed and update token if returned by backend
         const data = await res.json();
         if (data.token) {
           localStorage.setItem('token', data.token);
@@ -211,7 +203,6 @@ export default function Admin() {
     <div className="admin-container">
       <h1>Configuração Admin</h1>
       <div className="admin-columns" style={{ flexDirection: 'column' }}>
-        {/* Chamados full width */}
         <div className="admin-column chamados-column" style={{ width: '100%', marginBottom: '30px' }}>
           <h2>Chamados</h2>
           <div className="filters-container">
@@ -264,7 +255,6 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Users below chamados */}
         <div className="admin-column users-column" style={{ width: '100%' }}>
           <h2>Usuários</h2>
           <div className="filters-container users-filters">
@@ -276,7 +266,6 @@ export default function Admin() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  // Call fetchUsersWithFilter with current input value to ensure latest state is used
                   fetchUsersWithFilter();
                 }
               }}
@@ -294,7 +283,7 @@ export default function Admin() {
               fetchUsers();
             }}>Todos</button>
             <button onClick={() => {
-              setFilterUserPermission(''); // No direct equivalent of "Sem Técnico" for users, so just clear filters
+              setFilterUserPermission('');
               setFilterUserKeyword('');
               fetchUsers();
             }}>Limpar</button>
@@ -311,7 +300,6 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* Chamado modal */}
       {isChamadoModalOpen && selectedChamado && (
         <div className="modal-overlay" onClick={closeChamadoModal}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -342,8 +330,17 @@ export default function Admin() {
                 <div className="modal-text-inline">{selectedChamado.previsao ? selectedChamado.previsao.substring(0, 10) : 'N/A'}</div>
               </div>
               <div className="modal-section-inline" style={{gap: '10px', alignItems: 'center', marginTop: '12px'}}>
-                <div className="modal-label-left" style={{minWidth: '80px'}}>Status:</div>
-                <div className="modal-text-inline">{selectedChamado.status || 'N/A'}</div>
+                <div className="modal-label-left">Status:</div>
+                <div className="modal-select-centered">
+                  <select
+                    value={selectedChamado.status || ''}
+                    onChange={e => setSelectedChamado({ ...selectedChamado, status: e.target.value })}
+                  >
+                    <option value="Aberto">Aberto</option>
+                    <option value="Em análise">Em análise</option>
+                    <option value="Fechado">Fechado</option>
+                  </select>
+                </div>
               </div>
             </div>
 

@@ -16,11 +16,32 @@ const EmojiPicker = ({ onSelect }) => {
 };
 
 export default function Chat() {
-  const [supportUsers, setSupportUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [chamados, setChamados] = useState([]);
+  const [selectedChamado, setSelectedChamado] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [userPermission, setUserPermission] = useState('');
   const stompClient = useRef(null);
+
+  const loggedInUser = localStorage.getItem('username');
+
+  // Fetch user permission
+  const fetchUserPermission = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/user/me', {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUserPermission(data.permission);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user permission:', error);
+    }
+  };
 
   // Fetch chamados for chat based on user role
   const fetchChamadosForChat = async () => {
@@ -32,47 +53,8 @@ export default function Chat() {
         },
       });
       if (response.ok) {
-        const chamados = await response.json();
-        const username = localStorage.getItem('username');
-
-        // Build supportUsers list based on chamados
-        // For tecnico: list of usuarios from chamados
-        // For cliente: list of tecnicos from chamados
-        const currentUserPermission = localStorage.getItem('permission') || '';
-        let usersSet = new Set();
-        if (currentUserPermission.toLowerCase() === 'tecnico') {
-          chamados.forEach(chamado => {
-            if (chamado.usuario && chamado.usuario !== username) {
-              usersSet.add(chamado.usuario);
-            }
-          });
-        } else if (currentUserPermission.toLowerCase() === 'cliente') {
-          chamados.forEach(chamado => {
-            if (chamado.tecnico && chamado.tecnico !== username) {
-              usersSet.add(chamado.tecnico);
-            }
-          });
-        }
-        const usersArray = Array.from(usersSet);
-
-        // Fetch online status for these users
-        const statusResponse = await fetch(`/api/chat/onlineStatus?usernames=${usersArray.join(',')}`, {
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : '',
-          },
-        });
-        let onlineStatusMap = {};
-        if (statusResponse.ok) {
-          onlineStatusMap = await statusResponse.json();
-        }
-
-        // Build supportUsers array with online status
-        const supportUsersList = usersArray.map(username => ({
-          username,
-          online: onlineStatusMap[username] || false,
-        }));
-
-        setSupportUsers(supportUsersList);
+        const data = await response.json();
+        setChamados(data);
       }
     } catch (error) {
       console.error('Failed to fetch chamados for chat:', error);
@@ -80,14 +62,56 @@ export default function Chat() {
   };
 
   useEffect(() => {
-    fetchChamadosForChat();
+    const fetchData = async () => {
+      await fetchUserPermission();
+      await fetchChamadosForChat();
+    };
+    fetchData();
   }, []);
+
+  // New: Periodically fetch online status from backend API
+  useEffect(() => {
+    const fetchOnlineStatus = async () => {
+      if (chamados.length === 0) return;
+      try {
+        const token = localStorage.getItem('token');
+        const usernames = [];
+        chamados.forEach(chamado => {
+          if (chamado.tecnico) usernames.push(chamado.tecnico);
+          if (chamado.usuario) usernames.push(chamado.usuario);
+        });
+        // Remove duplicates
+        const uniqueUsernames = [...new Set(usernames)];
+        const response = await fetch(`/api/chat/onlineStatus?usernames=${uniqueUsernames.join(',')}`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+        });
+        if (response.ok) {
+          const statusMap = await response.json();
+          setChamados(prevChamados =>
+            prevChamados.map(chamado => ({
+              ...chamado,
+              tecnicoOnline: statusMap[chamado.tecnico] || false,
+              usuarioOnline: statusMap[chamado.usuario] || false,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error('Failed to fetch online status:', error);
+      }
+    };
+
+    fetchOnlineStatus();
+    const interval = setInterval(fetchOnlineStatus, 10000); // every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [chamados]);
 
   useEffect(() => {
     // Setup WebSocket connection to backend server on port 8080
     // Append token as query param for WebSocket handshake
     const token = localStorage.getItem('token');
-    const username = localStorage.getItem('username');
     const socketUrl = token ? `http://localhost:8080/ws-chat?token=${token}` : 'http://localhost:8080/ws-chat';
     const socket = new SockJS(socketUrl);
     stompClient.current = new Client({
@@ -102,18 +126,9 @@ export default function Chat() {
         stompClient.current.subscribe('/user/queue/messages', (message) => {
           const msg = JSON.parse(message.body);
           console.log('Received message via WebSocket:', msg);
-          // Append all messages to state for real-time update
           setMessages((prev) => [...prev, msg]);
         });
-        stompClient.current.subscribe('/topic/onlineUsers', (message) => {
-          const onlineUsers = JSON.parse(message.body);
-          setSupportUsers((prevUsers) =>
-            prevUsers.map((user) => ({
-              ...user,
-              online: onlineUsers.includes(user.username),
-            }))
-          );
-        });
+        // Removed subscription to /topic/onlineUsers to avoid status changes on navigation
       },
       connectHeaders: {
         Authorization: token ? `Bearer ${token}` : ''
@@ -121,23 +136,62 @@ export default function Chat() {
     });
     stompClient.current.activate();
 
-    // Poll every 5 seconds for user list update fallback
-    const interval = setInterval(fetchChamadosForChat, 5000);
-
     return () => {
-      clearInterval(interval);
+      if (stompClient.current) {
+        stompClient.current.deactivate();
+      }
     };
   }, []);
 
-  // Filter messages for display based on selectedUser
-  const filteredMessages = messages.filter((msg) => {
-    if (!selectedUser) return false;
-    const username = localStorage.getItem('username');
-    return (
-      (msg.sender === username && msg.receiver === selectedUser.username) ||
-      (msg.receiver === username && msg.sender === selectedUser.username)
-    );
-  });
+  // Fetch online status for technician and client of selected chamado
+  const [onlineStatus, setOnlineStatus] = useState({ tecnico: false, cliente: false });
+
+  const fetchOnlineStatus = async (tecnico, cliente) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/chat/onlineStatus?usernames=${tecnico},${cliente}`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      if (response.ok) {
+        const statusMap = await response.json();
+        setOnlineStatus({
+          tecnico: statusMap[tecnico] || false,
+          cliente: statusMap[cliente] || false,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch online status:', error);
+    }
+  };
+
+  const handleChamadoSelect = async (chamado) => {
+    setSelectedChamado(chamado);
+    await fetchOnlineStatus(chamado.tecnico, chamado.usuario);
+    // Fetch chat history between tecnico and usuario filtered by chamado id
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/chat/history?user1=${chamado.tecnico}&user2=${chamado.usuario}`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Filter messages by chamado id if message has chamadoId field
+        const filteredMessages = data.filter(msg => msg.chamadoId === chamado.id);
+        setMessages(filteredMessages);
+      } else {
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chat history:', error);
+      setMessages([]);
+    }
+  };
+
+  const filteredMessages = messages;
 
   const [modalOpen, setModalOpen] = React.useState(false);
   const [modalMessage, setModalMessage] = React.useState('');
@@ -153,16 +207,24 @@ export default function Chat() {
   };
 
   const handleSendMessage = () => {
-    if (!selectedUser?.online) {
-      openModal('Atendente Offline');
-      setInput('');
+    if (!selectedChamado) {
+      openModal('Selecione um chamado para iniciar a conversa.');
       return;
     }
-    if (input.trim() && selectedUser && stompClient.current && stompClient.current.connected) {
+    if (!onlineStatus.tecnico) {
+      openModal('Técnico está offline.');
+      return;
+    }
+    if (!onlineStatus.cliente && loggedInUser !== selectedChamado.usuario) {
+      openModal('Cliente está offline.');
+      return;
+    }
+    if (input.trim() && stompClient.current && stompClient.current.connected) {
       const newMessage = {
         content: input.trim(),
         sender: localStorage.getItem('username'),
-        receiver: selectedUser.username,
+        receiver: selectedChamado.tecnico === localStorage.getItem('username') ? selectedChamado.usuario : selectedChamado.tecnico,
+        chamadoId: selectedChamado.id,
       };
       console.log('Sending message:', newMessage);
       stompClient.current.publish({
@@ -177,83 +239,67 @@ export default function Chat() {
     setInput(input + emoji);
   };
 
-  const handleLogout = async () => {
-    const usernameStored = localStorage.getItem('username');
-    if (!usernameStored) return;
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: usernameStored }),
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-    if (stompClient.current && stompClient.current.connected) {
-      stompClient.current.deactivate();
-    }
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
-    window.location.href = '/login';
-  };
-
-  const messagesEndRef = React.useRef(null);
-
-  React.useEffect(() => {
-    const chatMessagesDiv = document.querySelector('.chat-messages');
-    if (chatMessagesDiv) {
-      chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
-    }
-  }, [messages]);
-
-  const handleUserSelect = async (user) => {
-    setSelectedUser(user);
-    // Fetch chat history from backend
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/chat/history?user1=${localStorage.getItem('username')}&user2=${user.username}`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data);
-      } else {
-        setMessages([]);
-      }
-    } catch (error) {
-      console.error('Failed to fetch chat history:', error);
-      setMessages([]);
-    }
-  };
-
   return (
     <>
       <div className="chat-wrapper">
         <div className="support-list">
-          <h3>Suporte Online</h3>
+          <h3>Chamados</h3>
           <ul>
-            {supportUsers.map((user) => (
-              <li
-                key={user.username}
-                className={user.online ? 'online' : 'offline'}
-                onClick={() => handleUserSelect(user)}
-                style={{ cursor: 'pointer', fontWeight: selectedUser?.username === user.username ? 'bold' : 'normal' }}
-              >
-                <span className={user.online ? 'status-dot online' : 'status-dot offline'}></span>&nbsp;{user.username}
-              </li>
-            ))}
+          {(userPermission && userPermission.toLowerCase() === 'admin') ? chamados.filter(chamado => chamado.status.toLowerCase() === 'aberto') || chamados.filter(chamado => chamado.status.toLowerCase() === 'fechado') || chamados.filter(chamado => chamado.status.toLowerCase() === 'em análise') : chamados.filter(chamado => chamado.status.toLowerCase() !== 'fechado').map((chamado) => (
+            <li
+              key={chamado.id}
+              onClick={() => handleChamadoSelect(chamado)}
+              style={{
+                cursor: 'pointer',
+                fontWeight: selectedChamado?.id === chamado.id ? 'bold' : 'normal',
+                padding: '10px',
+                border: '1px solid #ccc',
+                marginBottom: '8px',
+                borderRadius: '6px',
+                listStyleType: 'none',
+              }}
+            >
+              <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>{chamado.chamado}</div>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                <span
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: chamado.tecnico && chamado.tecnicoOnline ? 'green' : 'red',
+                    display: 'inline-block',
+                    marginRight: '8px',
+                  }}
+                  title={chamado.tecnico && chamado.tecnicoOnline ? 'Online' : 'Offline'}
+                ></span>
+                <span>Técnico: {chamado.tecnico}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: chamado.usuario === loggedInUser ? 'green' : (chamado.usuario && chamado.usuarioOnline ? 'green' : 'red'),
+                    display: 'inline-block',
+                    marginRight: '8px',
+                  }}
+                  title={chamado.usuario === loggedInUser ? 'Online' : (chamado.usuario && chamado.usuarioOnline ? 'Online' : 'Offline')}
+                ></span>
+                <span>Cliente: {chamado.usuario}</span>
+              </div>
+            </li>
+          ))}
           </ul>
         </div>
         <div className="chat-main">
-          {selectedUser ? (
+          {selectedChamado ? (
             <>
               <div className="chat-header">
-                Conversa com {selectedUser.username}
+                Conversa do Chamado {selectedChamado.chamado}
               </div>
               <div className="chat-messages">
-                {messages.length === 0 && <p className="no-messages">Nenhuma mensagem ainda.</p>}
+                {filteredMessages.length === 0 && <p className="no-messages">Nenhuma mensagem ainda.</p>}
                 {filteredMessages.map((msg, index) => {
                   const isSentByUser = msg.sender === localStorage.getItem('username');
                   return (
@@ -277,7 +323,6 @@ export default function Chat() {
                     </div>
                   );
                 })}
-                <div ref={messagesEndRef} />
               </div>
               <div className="chat-input-area">
                 <EmojiPicker onSelect={handleEmojiSelect} />
@@ -293,7 +338,7 @@ export default function Chat() {
             </>
           ) : (
             <div className="no-user-selected">
-              Selecione um usuário de suporte para iniciar a conversa.
+              Selecione um chamado para iniciar a conversa.
             </div>
           )}
         </div>

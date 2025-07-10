@@ -22,7 +22,7 @@ export default function Tasks() {
   const fetchChamados = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/chamados', {
+      const response = await fetch('/api/chamados/kanban', {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
         },

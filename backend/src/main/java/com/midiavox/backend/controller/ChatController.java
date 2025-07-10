@@ -73,7 +73,9 @@ public class ChatController {
             return java.util.Collections.emptyList();
         }
         String permission = currentUser.getPermission();
-        if ("tecnico".equalsIgnoreCase(permission)) {
+        if ("admin".equalsIgnoreCase(permission)) {
+            return chamadoService.getAllChamados();
+        } else if ("tecnico".equalsIgnoreCase(permission)) {
             return chamadoService.getChamadosByTecnico(username);
         } else if ("cliente".equalsIgnoreCase(permission)) {
             return chamadoService.getChamadosByUsuario(username);
