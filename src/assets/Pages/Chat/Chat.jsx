@@ -245,7 +245,7 @@ export default function Chat() {
         <div className="support-list">
           <h3>Chamados</h3>
           <ul>
-          {(userPermission && userPermission.toLowerCase() === 'admin') ? chamados.filter(chamado => chamado.status.toLowerCase() === 'aberto') || chamados.filter(chamado => chamado.status.toLowerCase() === 'fechado') || chamados.filter(chamado => chamado.status.toLowerCase() === 'em análise') : chamados.filter(chamado => chamado.status.toLowerCase() !== 'fechado').map((chamado) => (
+          {(userPermission && userPermission.toLowerCase() === 'admin') ? chamados.filter(chamado => chamado.status.toLowerCase() === 'Aberto') || chamados.filter(chamado => chamado.status.toLowerCase() === 'Fechado') || chamados.filter(chamado => chamado.status.toLowerCase() === 'Em Análise') : chamados.filter(chamado => chamado.status.toLowerCase() !== 'Fechado').map((chamado) => (
             <li
               key={chamado.id}
               onClick={() => handleChamadoSelect(chamado)}
