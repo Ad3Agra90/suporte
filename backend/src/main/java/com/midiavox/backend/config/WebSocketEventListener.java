@@ -45,12 +45,25 @@ public class WebSocketEventListener {
         String username = (String) headerAccessor.getSessionAttributes().get("username");
         System.out.println("WebSocket disconnected: username=" + username + " at " + java.time.LocalDateTime.now());
         if (username != null) {
-            User user = userRepository.findByUsername(username).orElse(null);
-            if (user != null) {
-                user.setOnline(false);
-                userRepository.save(user);
-                sendOnlineUsersUpdate();
-            }
+            // Delay setting user offline by 3 minutes to allow page navigation without going offline immediately
+            new Thread(() -> {
+                try {
+                    Thread.sleep(3 * 60 * 1000); // 3 minutes
+                    User user = userRepository.findByUsername(username).orElse(null);
+                    if (user != null) {
+                        // Check if user reconnected in the meantime
+                        if (user.isOnline()) {
+                            System.out.println("User " + username + " reconnected within delay, not setting offline.");
+                            return;
+                        }
+                        user.setOnline(false);
+                        userRepository.save(user);
+                        sendOnlineUsersUpdate();
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }).start();
         }
     }
 

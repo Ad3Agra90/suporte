@@ -7,9 +7,10 @@ import Chat from './assets/Pages/Chat/Chat';
 import Chamados from './assets/Pages/Chamados/Chamados';
 import Tasks from './assets/Pages/Tasks/Tasks';
 import Admin from './assets/Pages/Admin/Admin';
+import Home from './assets/Pages/Home/Home';
 import './App.css';
 
-function Home({ username }) {
+function DefaultHome({ username }) {
   return (
     <main>
       <h2>Welcome, {username}!</h2>

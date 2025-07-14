@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import com.midiavox.backend.model.Chamado;
@@ -18,10 +19,12 @@ public class ChamadoController {
 
     private final ChamadoService chamadoService;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public ChamadoController(ChamadoService chamadoService, UserRepository userRepository) {
+    public ChamadoController(ChamadoService chamadoService, UserRepository userRepository, SimpMessagingTemplate messagingTemplate) {
         this.chamadoService = chamadoService;
         this.userRepository = userRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @GetMapping("/kanban")
@@ -32,13 +35,22 @@ public class ChamadoController {
             return java.util.Collections.emptyList();
         }
         String permission = currentUser.getPermission();
+        List<Chamado> chamados;
         if ("tecnico".equalsIgnoreCase(permission)) {
-            return chamadoService.getChamadosByTecnico(username);
+            chamados = chamadoService.getChamadosByTecnico(username);
         } else if ("cliente".equalsIgnoreCase(permission)) {
-            return chamadoService.getChamadosByUsuario(username);
+            chamados = chamadoService.getChamadosByUsuario(username);
         } else {
             return java.util.Collections.emptyList();
         }
+        // Populate empresaUsuario for each chamado from User entity
+        for (Chamado chamado : chamados) {
+            User user = userRepository.findByUsername(chamado.getUsuario()).orElse(null);
+            if (user != null) {
+                chamado.setEmpresaUsuario(user.getEmpresaUsuario());
+            }
+        }
+        return chamados;
     }
 
     @PostMapping
@@ -49,13 +61,6 @@ public class ChamadoController {
             System.out.println("User not found for username: " + principal.getName());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        // Allow any permission to create chamado
-        // String permission = currentUser.getPermission();
-        // System.out.println("User permission: " + permission);
-        // if (!("cliente".equalsIgnoreCase(permission) || "admin".equalsIgnoreCase(permission) || "master".equalsIgnoreCase(permission))) {
-        //     System.out.println("User permission not allowed to create chamado: " + permission);
-        //     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        // }
         // Set the logged-in user as the usuario
         chamado.setUsuario(principal.getName());
         // Set initial values
@@ -65,13 +70,13 @@ public class ChamadoController {
         chamado.setStatus("Aberto");
 
         Chamado savedChamado = chamadoService.saveChamado(chamado);
+        messagingTemplate.convertAndSend("/topic/chamados", savedChamado);
         return ResponseEntity.ok(savedChamado);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Chamado> updateChamado(@PathVariable Long id, @RequestBody Chamado chamado, Principal principal) {
         chamado.setId(id);
-        // Check ownership or admin permission
         User currentUser = userRepository.findByUsername(principal.getName()).orElse(null);
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -82,10 +87,19 @@ public class ChamadoController {
         }
         boolean isOwner = existingChamado.getUsuario().equals(principal.getName());
         boolean isAdmin = currentUser.getPermission() != null && (currentUser.getPermission().equalsIgnoreCase("admin") || currentUser.getPermission().equalsIgnoreCase("master"));
-        if (!isOwner && !isAdmin) {
+        boolean isTecnico = currentUser.getPermission() != null && currentUser.getPermission().equalsIgnoreCase("tecnico");
+        if (!isOwner && !isAdmin && !isTecnico) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+        // Restrict editing resposta, prioridade, status, previsao to admin and tecnico only
+        if (!isAdmin && !isTecnico) {
+            chamado.setResposta(existingChamado.getResposta());
+            chamado.setPrioridade(existingChamado.getPrioridade());
+            chamado.setStatus(existingChamado.getStatus());
+            chamado.setPrevisao(existingChamado.getPrevisao());
+        }
         Chamado updatedChamado = chamadoService.saveChamado(chamado);
+        messagingTemplate.convertAndSend("/topic/chamados", updatedChamado);
         return ResponseEntity.ok(updatedChamado);
     }
 
@@ -93,6 +107,13 @@ public class ChamadoController {
     public ResponseEntity<List<Chamado>> getChamadosByUsuario(Principal principal) {
         System.out.println("Fetching chamados for user: " + principal.getName());
         List<Chamado> chamados = chamadoService.getChamadosByUsuario(principal.getName());
+        // Populate empresaUsuario for each chamado from User entity
+        for (Chamado chamado : chamados) {
+            User user = userRepository.findByUsername(chamado.getUsuario()).orElse(null);
+            if (user != null) {
+                chamado.setEmpresaUsuario(user.getEmpresaUsuario());
+            }
+        }
         System.out.println("Chamados found: " + chamados.size());
         return ResponseEntity.ok(chamados);
     }
@@ -100,6 +121,13 @@ public class ChamadoController {
     @GetMapping("/all")
     public ResponseEntity<List<Chamado>> getAllChamados() {
         List<Chamado> chamados = chamadoService.getAllChamados();
+        // Populate empresaUsuario for each chamado from User entity
+        for (Chamado chamado : chamados) {
+            User user = userRepository.findByUsername(chamado.getUsuario()).orElse(null);
+            if (user != null) {
+                chamado.setEmpresaUsuario(user.getEmpresaUsuario());
+            }
+        }
         return ResponseEntity.ok(chamados);
     }
 
@@ -107,6 +135,13 @@ public class ChamadoController {
     public ResponseEntity<List<Chamado>> getChamadosByTecnico(Principal principal) {
         System.out.println("Fetching chamados for tecnico: " + principal.getName());
         List<Chamado> chamados = chamadoService.getChamadosByTecnico(principal.getName());
+        // Populate empresaUsuario for each chamado from User entity
+        for (Chamado chamado : chamados) {
+            User user = userRepository.findByUsername(chamado.getUsuario()).orElse(null);
+            if (user != null) {
+                chamado.setEmpresaUsuario(user.getEmpresaUsuario());
+            }
+        }
         System.out.println("Chamados found for tecnico: " + chamados.size());
         return ResponseEntity.ok(chamados);
     }
@@ -114,6 +149,7 @@ public class ChamadoController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteChamado(@PathVariable Long id) {
         chamadoService.deleteChamadoById(id);
+        messagingTemplate.convertAndSend("/topic/chamados", "deleted:" + id);
         return ResponseEntity.noContent().build();
     }
 
@@ -137,7 +173,13 @@ public class ChamadoController {
         } else {
             chamados = chamadoService.getAllChamados();
         }
-
+        // Populate empresaUsuario for each chamado from User entity
+        for (Chamado chamado : chamados) {
+            User user = userRepository.findByUsername(chamado.getUsuario()).orElse(null);
+            if (user != null) {
+                chamado.setEmpresaUsuario(user.getEmpresaUsuario());
+            }
+        }
         return ResponseEntity.ok(chamados);
     }
 }

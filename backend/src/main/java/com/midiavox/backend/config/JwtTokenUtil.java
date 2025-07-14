@@ -21,7 +21,7 @@ public class JwtTokenUtil implements InitializingBean {
     }
 
     public String generateToken(String username) {
-        long expirationMillis = 1000 * 60 * 60 * 10; // 10 hours
+        long expirationMillis = 1000 * 60 * 2; // 2 minutes
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMillis);
 

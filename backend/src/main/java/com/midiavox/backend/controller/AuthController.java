@@ -45,6 +45,10 @@ public class AuthController {
         if (user == null) {
             return ResponseEntity.status(401).body("Usuário ou senha incorretos");
         }
+        // Set user online status to true on login
+        user.setOnline(true);
+        authService.saveUser(user);
+
         String token = jwtTokenUtil.generateToken(user.getUsername());
         return ResponseEntity.ok(new LoginResponse(token, user.getUsername(), user.getPermission()));
     }

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import './Admin.css';
 
 export default function Admin() {
@@ -23,11 +25,54 @@ export default function Admin() {
   const [filterUserKeyword, setFilterUserKeyword] = useState('');
   const [users, setUsers] = useState([]);
 
+  const clientRef = useRef(null);
+
   useEffect(() => {
     fetchChamados();
     fetchUsers();
     const perm = localStorage.getItem('permission') || '';
     setCurrentUserPermission(perm.toLowerCase());
+
+    // Setup WebSocket connection
+    clientRef.current = new Client({
+      webSocketFactory: () => new SockJS('/ws-chat'),
+      reconnectDelay: 5000,
+      debug: function (str) {
+        console.log(str);
+      },
+    });
+
+    clientRef.current.onConnect = () => {
+      clientRef.current.subscribe('/topic/chamados', message => {
+        if (message.body) {
+          const body = message.body;
+          if (body.startsWith('deleted:')) {
+            const deletedId = body.split(':')[1];
+            setChamados(prevChamados => prevChamados.filter(c => c.id.toString() !== deletedId));
+          } else {
+            const updatedChamado = JSON.parse(body);
+            setChamados(prevChamados => {
+              const index = prevChamados.findIndex(c => c.id === updatedChamado.id);
+              if (index !== -1) {
+                const newChamados = [...prevChamados];
+                newChamados[index] = updatedChamado;
+                return newChamados;
+              } else {
+                return [...prevChamados, updatedChamado];
+              }
+            });
+          }
+        }
+      });
+    };
+
+    clientRef.current.activate();
+
+    return () => {
+      if (clientRef.current) {
+        clientRef.current.deactivate();
+      }
+    };
   }, []);
 
   const handleFilterChange = (overrides = {}) => {
@@ -257,6 +302,10 @@ export default function Admin() {
 
         <div className="admin-column users-column" style={{ width: '100%' }}>
           <h2>Usuários</h2>
+          <button className="add-user-btn" onClick={() => {
+            setEditedUser({ username: '', email: '', empresaUsuario: '', password: '', permission: '' });
+            setIsUserModalOpen(true);
+          }}>Cadastrar Usuário</button>
           <div className="filters-container users-filters">
             <input
               type="text"
@@ -373,67 +422,67 @@ export default function Admin() {
                   </select>
                 </div>
               </div>
-            </div>
 
-            <div className="modal-buttons">
-              <button onClick={async () => {
-                try {
-                  const token = localStorage.getItem('token');
-                  // Log the selectedChamado before sending
-                  console.log('Saving chamado:', selectedChamado);
-                  const res = await fetch(`/api/chamados/${selectedChamado.id}`, {
-                    method: 'PUT',
-                    headers: { 
-                      'Content-Type': 'application/json',
-                      'Authorization': token ? `Bearer ${token}` : '',
-                    },
-                    body: JSON.stringify({
-                      ...selectedChamado,
-                      tecnico: selectedChamado.tecnico || '',
-                      prioridade: selectedChamado.prioridade || '',
-                      resposta: selectedChamado.resposta || '',
-                      previsao: selectedChamado.previsao || '',
-                      status: selectedChamado.status || '',
-                      descricao: selectedChamado.descricao || '',
-                      empresaUsuario: selectedChamado.empresaUsuario || '',
-                      usuario: selectedChamado.usuario || '',
-                      chamado: selectedChamado.chamado || '',
-                    }),
-                  });
-                  if (res.ok) {
-                    await fetchChamados();
-                    closeChamadoModal();
-                  } else {
-                    const errorText = await res.text();
-                    alert('Falha ao salvar chamado: ' + errorText);
+              <div className="modal-buttons">
+                <button onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('token');
+                    // Log the selectedChamado before sending
+                    console.log('Saving chamado:', selectedChamado);
+                    const res = await fetch(`/api/chamados/${selectedChamado.id}`, {
+                      method: 'PUT',
+                      headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': token ? `Bearer ${token}` : '',
+                      },
+                      body: JSON.stringify({
+                        ...selectedChamado,
+                        tecnico: selectedChamado.tecnico || '',
+                        prioridade: selectedChamado.prioridade || '',
+                        resposta: selectedChamado.resposta || '',
+                        previsao: selectedChamado.previsao || '',
+                        status: selectedChamado.status || '',
+                        descricao: selectedChamado.descricao || '',
+                        empresaUsuario: selectedChamado.empresaUsuario || '',
+                        usuario: selectedChamado.usuario || '',
+                        chamado: selectedChamado.chamado || '',
+                      }),
+                    });
+                    if (res.ok) {
+                      await fetchChamados();
+                      closeChamadoModal();
+                    } else {
+                      const errorText = await res.text();
+                      alert('Falha ao salvar chamado: ' + errorText);
+                    }
+                  } catch (error) {
+                    console.error('Erro ao salvar chamado:', error);
                   }
-                } catch (error) {
-                  console.error('Erro ao salvar chamado:', error);
-                }
-              }}>Salvar</button>
+                }}>Salvar</button>
 
-              <button onClick={closeChamadoModal}>Cancelar</button>
+                <button onClick={closeChamadoModal}>Cancelar</button>
 
-              <button className="delete-btn" onClick={async () => {
-                if (!window.confirm('Tem certeza que deseja deletar este chamado?')) return;
-                try {
-                  const token = localStorage.getItem('token');
-                  const res = await fetch(`/api/chamados/${selectedChamado.id}`, {
-                    method: 'DELETE',
-                    headers: {
-                      'Authorization': token ? `Bearer ${token}` : '',
-                    },
-                  });
-                  if (res.ok) {
-                    await fetchChamados();
-                    closeChamadoModal();
-                  } else {
-                    alert('Falha ao deletar chamado');
+                <button className="delete-btn" onClick={async () => {
+                  if (!window.confirm('Tem certeza que deseja deletar este chamado?')) return;
+                  try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch(`/api/chamados/${selectedChamado.id}`, {
+                      method: 'DELETE',
+                      headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
+                      },
+                    });
+                    if (res.ok) {
+                      await fetchChamados();
+                      closeChamadoModal();
+                    } else {
+                      alert('Falha ao deletar chamado');
+                    }
+                  } catch (error) {
+                    console.error('Erro ao deletar chamado:', error);
                   }
-                } catch (error) {
-                  console.error('Erro ao deletar chamado:', error);
-                }
-              }}>Deletar</button>
+                }}>Deletar</button>
+              </div>
             </div>
           </div>
         </div>
@@ -443,7 +492,7 @@ export default function Admin() {
       {isUserModalOpen && editedUser && (
         <div className="modal-overlay" onClick={closeUserModal}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h3>Editar Usuário</h3>
+            <h3>{editedUser.id ? 'Editar Usuário' : 'Cadastrar Usuário'}</h3>
             <div className="modal-card">
               <label>
                 Username:<br />
@@ -452,7 +501,13 @@ export default function Admin() {
             </div>
             <div className="modal-card">
               <label>
-                Empresa:<br />
+                Email:<br />
+                <input type="email" value={editedUser.email || ''} onChange={e => handleUserChange('email', e.target.value)} />
+              </label>
+            </div>
+            <div className="modal-card">
+              <label>
+                Empresa Associada:<br />
                 <input type="text" value={editedUser.empresaUsuario || ''} onChange={e => handleUserChange('empresaUsuario', e.target.value)} />
               </label>
             </div>
@@ -469,19 +524,13 @@ export default function Admin() {
             </div>
             <div className="modal-card">
               <label>
-                Email:<br />
-                <input type="email" value={editedUser.email || ''} onChange={e => handleUserChange('email', e.target.value)} />
-              </label>
-            </div>
-            <div className="modal-card">
-              <label>
-                Redefinir senha:<br />
-                <input type="password" value={editedUser.password || ''} placeholder="Digite a nova senha" onChange={e => handleUserChange('password', e.target.value)} />
+                Password:<br />
+                <input type="password" value={editedUser.password || ''} placeholder={editedUser.id ? 'Digite a nova senha' : ''} onChange={e => handleUserChange('password', e.target.value)} />
               </label>
             </div>
             <button onClick={saveUser}>Salvar</button>
             <button onClick={closeUserModal}>Cancelar</button>
-            <button className="delete-btn" onClick={openDeleteConfirm}>Excluir</button>
+            {editedUser.id && <button className="delete-btn" onClick={openDeleteConfirm}>Excluir</button>}
           </div>
         </div>
       )}

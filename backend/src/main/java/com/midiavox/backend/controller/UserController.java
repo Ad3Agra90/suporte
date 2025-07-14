@@ -58,6 +58,9 @@ public class UserController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
+    @Autowired
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
         return userRepository.findById(id)
@@ -66,8 +69,12 @@ public class UserController {
                 user.setEmpresaUsuario(updatedUser.getEmpresaUsuario());
                 user.setPermission(updatedUser.getPermission());
                 user.setEmail(updatedUser.getEmail());
-                user.setPassword(updatedUser.getPassword());
+                // Hash password if changed
+                if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
+                    user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+                }
                 User savedUser = userRepository.save(user);
+                // Optionally generate and update token here if stored in DB (not shown in current code)
                 return ResponseEntity.ok(savedUser);
             })
             .orElseGet(() -> ResponseEntity.notFound().build());
