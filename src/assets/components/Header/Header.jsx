@@ -84,7 +84,7 @@ export default function Header({ username }) {
   return (
     <header className="app-header">
       <div className="header-logo">
-        <h1>MyAppLogo</h1>
+        <img src="/src/assets/img/logo_white.webp" alt="MyAppLogo" className="header-logo-img" />
       </div>
       <nav className="navigation" style={{ width: `${menuItems.length * 70}px` }}>
         <ul>

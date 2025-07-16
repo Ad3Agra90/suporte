@@ -50,7 +50,9 @@ public class AuthController {
         authService.saveUser(user);
 
         String token = jwtTokenUtil.generateToken(user.getUsername());
-        return ResponseEntity.ok(new LoginResponse(token, user.getUsername(), user.getPermission()));
+        var refreshToken = authService.createRefreshToken(user.getUsername());
+
+        return ResponseEntity.ok(new LoginResponse(token, refreshToken.getToken(), user.getUsername(), user.getPermission()));
     }
 
     @PostMapping("/request-password-reset")
@@ -79,6 +81,7 @@ public class AuthController {
         if (user != null) {
             user.setOnline(false);
             authService.saveUser(user);
+            authService.deleteAllByUsername(user.getUsername());
             return ResponseEntity.ok("Logout successful");
         }
         return ResponseEntity.badRequest().body("User not found");
@@ -116,16 +119,19 @@ public class AuthController {
 
     public static class LoginResponse {
         private String token;
+        private String refreshToken;
         private String username;
         private String permission;
 
-        public LoginResponse(String token, String username, String permission) {
+        public LoginResponse(String token, String refreshToken, String username, String permission) {
             this.token = token;
+            this.refreshToken = refreshToken;
             this.username = username;
             this.permission = permission;
         }
 
         public String getToken() { return token; }
+        public String getRefreshToken() { return refreshToken; }
         public String getUsername() { return username; }
         public String getPermission() { return permission; }
     }

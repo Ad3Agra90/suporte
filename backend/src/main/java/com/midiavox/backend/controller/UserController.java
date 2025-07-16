@@ -61,6 +61,16 @@ public class UserController {
     @Autowired
     private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
+    @PostMapping
+    public ResponseEntity<User> createUser(@RequestBody User newUser) {
+        if (newUser.getPassword() == null || newUser.getPassword().isEmpty()) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
+        User savedUser = userRepository.save(newUser);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
         return userRepository.findById(id)

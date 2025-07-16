@@ -19,6 +19,12 @@
   font-size: 1.5rem;
 }
 
+.header-logo-img {
+  height: 40px; /* Adjust height as needed */
+  width: auto;
+  display: block;
+}
+
 .navigation {
   /* Remove fixed width to allow dynamic sizing */
   height: 70px;

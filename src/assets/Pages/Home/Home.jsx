@@ -3,14 +3,14 @@ import { useLocation } from 'react-router-dom';
 
 const containerStyle = {
   position: 'fixed',
-  top: '60px', // Adjust to header height
+  top: '-80px', // Adjust to header height
   left: 0,
-  height: 'calc(100vh - 60px)',
+  height: '110vh',
   width: '100vw',
   margin: 0,
   padding: 0,
   overflow: 'hidden',
-  zIndex: 0,
+  zIndex: 0, // Ensure iframe container stays behind header
 };
 
 const iframeStyle = {

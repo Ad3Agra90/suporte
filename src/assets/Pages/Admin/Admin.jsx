@@ -195,8 +195,10 @@ export default function Admin() {
   const saveUser = async () => {
     if (!editedUser) return;
     try {
-      const res = await fetch(`/api/users/${editedUser.id}`, {
-        method: 'PUT',
+      const method = editedUser.id ? 'PUT' : 'POST';
+      const url = editedUser.id ? `/api/users/${editedUser.id}` : '/api/users';
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editedUser),
       });
